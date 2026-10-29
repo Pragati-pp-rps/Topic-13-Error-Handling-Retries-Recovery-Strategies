@@ -1,0 +1,700 @@
+{
+  "name": "Topic 13 - Global Error Handler - PostgreSQL and Slack",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0fc2def8-1f66-466e-a1fb-0fed7dfbfcaa",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2304,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Change scenario to 'success', 'transient', or 'permanent'.\n// transient: simulated HTTP 503; permanent: simulated HTTP 400.\nconst scenario = 'transient';\nconst status = scenario === 'success' ? 200 : scenario === 'permanent' ? 400 : 503;\nreturn [{json:{scenario, url:`https://httpbin.org/status/${status}`, request_id:$execution.id, started_at:new Date().toISOString()}}];"
+      },
+      "id": "ebf7bb05-afe7-4dd4-ac29-e47081aa702a",
+      "name": "Configure Test Scenario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2080,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Configure Test Scenario').first().json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "c8e9d1f3-01f5-4a03-8444-12ac71ab0c23",
+      "name": "HTTP Attempt 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1840,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.first().json||{}; const code=Number(r.statusCode||r.error?.httpCode||0); const ok=code>=200&&code<300&&!r.error; const retryable=code===0||code===408||code===429||code>=500; return [{json:{...$('Configure Test Scenario').first().json,attempt:1,status_code:code,ok,retryable,error_message:ok?'':String(r.error?.message||r.message||('HTTP '+code))}}];"
+      },
+      "id": "9bfd5971-819a-4ff5-af69-c212a507b086",
+      "name": "Check Attempt 1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c5dac435-ccf2-4f77-8ace-7fc466235823",
+              "leftValue": "={{ $json.retryable && !$json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "315621cb-65f0-4045-864f-0f0984cdd8fb",
+      "name": "IF Retryable 1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        208
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a26932e2-bf03-4cb1-b9a4-be7cdc412f2c",
+      "name": "Wait 5 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1440,
+        400
+      ],
+      "webhookId": "12bf1573-4419-429d-b008-bd2cb279fdd9"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Configure Test Scenario').first().json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "06760654-9baa-4684-905a-0d6078b538a4",
+      "name": "HTTP Attempt 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1248,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.first().json||{}; const code=Number(r.statusCode||r.error?.httpCode||0); const ok=code>=200&&code<300&&!r.error; const retryable=code===0||code===408||code===429||code>=500; return [{json:{...$('Configure Test Scenario').first().json,attempt:2,status_code:code,ok,retryable,error_message:ok?'':String(r.error?.message||r.message||('HTTP '+code))}}];"
+      },
+      "id": "10df77a7-66a4-4e31-8947-8ebeb3819874",
+      "name": "Check Attempt 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "409aa85e-7d6f-4045-9e9b-200c48d6b496",
+              "leftValue": "={{ $json.retryable && !$json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f2594237-9bcd-416e-9e58-da61c203b04a",
+      "name": "IF Retryable 2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "382ed648-e6fc-4e15-9ef2-859845130d10",
+      "name": "Wait 10 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -848,
+        400
+      ],
+      "webhookId": "2b98ee16-f82b-4263-9cc0-74a24eef27a6"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Configure Test Scenario').first().json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "3fb2e49a-b206-4ff3-8506-9040603ac10e",
+      "name": "HTTP Attempt 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -640,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.first().json||{}; const code=Number(r.statusCode||r.error?.httpCode||0); const ok=code>=200&&code<300&&!r.error; const retryable=code===0||code===408||code===429||code>=500; return [{json:{...$('Configure Test Scenario').first().json,attempt:3,status_code:code,ok,retryable,error_message:ok?'':String(r.error?.message||r.message||('HTTP '+code))}}];"
+      },
+      "id": "44f50665-6a38-46e4-beb1-7cc63c6b3a4b",
+      "name": "Check Attempt 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "859070fb-fb3c-4dcd-928a-00a1b8092a9f",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1c2a2659-5a66-4a81-ba7c-fb748bcab964",
+      "name": "IF Success 1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "e357c7ad-beb0-4fb8-b473-636877d7e715",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "53e54894-066f-406a-88fe-131e619b13c2",
+      "name": "IF Success 2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -928,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "fa489e94-dae0-458e-8c86-a8e62486db8c",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "604bc7f0-3d31-4722-a007-0dca361ff6f5",
+      "name": "IF Success 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item=>({json:{result:'success',scenario:item.json.scenario,attempts:item.json.attempt,status_code:item.json.status_code,execution_id:$execution.id}}));"
+      },
+      "id": "fa49e8f7-ba24-455d-b14a-b872aa5946e7",
+      "name": "Success Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ \"API failure after attempt \" + $json.attempt + \"; HTTP \" + $json.status_code + \"; \" + $json.error_message + \"; scenario=\" + $json.scenario }}"
+      },
+      "id": "394f9079-799c-4750-8a10-f97c33ca36b2",
+      "name": "Fail Permanently - Global Handler",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "1d354db1-c758-4eb6-9aa5-39c678fce87f",
+      "name": "Global Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2272,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data=$input.first().json||{};const e=data.execution||{};const w=data.workflow||{};const err=e.error||data.error||{};return [{json:{execution_id:String(e.id||''),workflow_id:String(w.id||''),workflow_name:String(w.name||'Unknown workflow'),failed_node:String(e.lastNodeExecuted||err.node?.name||'Unknown node'),error_message:String(err.message||err.description||'Unspecified error').slice(0,4000),execution_url:String(e.url||''),failed_at:new Date().toISOString()}}];"
+      },
+      "id": "a7b87331-802e-490b-b6b5-0dbc8ddcf0de",
+      "name": "Normalize Failure Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2032,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.system_error_logs (execution_id, workflow_id, workflow_name, failed_node, error_message, execution_url, failed_at) VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.execution_id, $json.workflow_id, $json.workflow_name, $json.failed_node, $json.error_message, $json.execution_url, $json.failed_at] }}"
+        }
+      },
+      "id": "76fdf973-8435-431c-8578-499627582490",
+      "name": "Postgres - Insert Error Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1760,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "TCpwyMALQ2hX4Vct",
+          "name": "Pragati Postgres"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$('Normalize Failure Metadata').first().json;const db=$input.first().json||{};return [{json:{...d,db_log_succeeded:!db.error,slack_text:`:rotating_light: *n8n workflow failed*\\n*Workflow:* ${d.workflow_name} (${d.workflow_id})\\n*Execution ID:* ${d.execution_id}\\n*Failed node:* ${d.failed_node}\\n*Error:* ${d.error_message}\\n*Execution URL:* ${d.execution_url||'Not available'}\\n*PostgreSQL logged:* ${!db.error}`}}];"
+      },
+      "id": "d8f3ce56-44ea-4cb6-8604-c5b302190dd5",
+      "name": "Prepare Slack Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "REPLACE_WITH_SLACK_INCOMING_WEBHOOK_URL",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({text:$json.slack_text}) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "475730d7-b602-4105-897d-43a598598382",
+      "name": "Slack - Dispatch Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1264,
+        624
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configure Test Scenario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Test Scenario": {
+      "main": [
+        [
+          {
+            "node": "HTTP Attempt 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Attempt 1": {
+      "main": [
+        [
+          {
+            "node": "Check Attempt 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Attempt 1": {
+      "main": [
+        [
+          {
+            "node": "IF Success 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Success 1": {
+      "main": [
+        [
+          {
+            "node": "Success Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Retryable 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Retryable 1": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail Permanently - Global Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5 Seconds": {
+      "main": [
+        [
+          {
+            "node": "HTTP Attempt 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Attempt 2": {
+      "main": [
+        [
+          {
+            "node": "Check Attempt 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Attempt 2": {
+      "main": [
+        [
+          {
+            "node": "IF Success 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Success 2": {
+      "main": [
+        [
+          {
+            "node": "Success Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Retryable 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Retryable 2": {
+      "main": [
+        [
+          {
+            "node": "Wait 10 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail Permanently - Global Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10 Seconds": {
+      "main": [
+        [
+          {
+            "node": "HTTP Attempt 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Attempt 3": {
+      "main": [
+        [
+          {
+            "node": "Check Attempt 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Attempt 3": {
+      "main": [
+        [
+          {
+            "node": "IF Success 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Success 3": {
+      "main": [
+        [
+          {
+            "node": "Success Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail Permanently - Global Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Global Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Failure Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Failure Metadata": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Insert Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - Insert Error Log": {
+      "main": [
+        [
+          {
+            "node": "Prepare Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack - Dispatch Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "47fed73e-c7fd-4db7-8d81-a5e1965cbb31",
+  "meta": {
+    "instanceId": "a03c7678428ef19ededbf912f16f7d5798ec7b9ab4c17f2a2def6a9e791e7215"
+  },
+  "nodeGroups": [],
+  "id": "Zik5ZMc0SJfeDYTx",
+  "tags": []
+}
